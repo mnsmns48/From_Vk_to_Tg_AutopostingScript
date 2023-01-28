@@ -10,7 +10,7 @@ class TgBot:
     vk_api_token: str
     vk_token: str
     notification: bool
-    vk_domain: str
+    owner_id: str
     amount_post_list: int
 
 
@@ -31,6 +31,6 @@ def load_config(path: str = None):
             vk_api_token=env.str("VK_API_TOKEN"),
             vk_token=env.str("VK_TOKEN"),
             notification=env.bool("DISABLE_NOTIFICATION"),
-            vk_domain=env.str("DOMAIN"),
+            owner_id=env.str("OWNER_ID"),
             amount_post_list=env.int("AMOUNT_POST_LIST")
         ))
