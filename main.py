@@ -1,10 +1,18 @@
-import vk_api, requests, json, time, os, shutil, datetime
+import vk_api, requests, json, time, os, shutil
+from datetime import datetime
 from config import load_config
 from tqdm import tqdm
 
 config = load_config(".env")
 session = vk_api.VkApi(token=config.tg_bot.vk_api_token)
 vk = session.get_api()
+
+
+def post_to_admin(text):
+    request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMessage"
+    params = {"chat_id": config.tg_bot.admin,
+              "text": text}
+    requests.post(request_url, params=params)
 
 
 def scrape_repost_photos(data, image_list):
@@ -79,7 +87,10 @@ def send_with_media(data, images, caption, photo='photo'):
               "disable_notification": config.tg_bot.notification}
     result = requests.post(request_url, params=params, files=files)
     if result.status_code == 200:
-        print(data['id'], result.ok, 'Фотографии:', len(list_attach), 'send_with_media', caption.strip().split('\n')[0])
+        time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
+        admin_message = f"{data['id']}, {result.ok}, Фотографии:, {len(list_attach)}, send_with_media, {time_now}"
+        print(admin_message)
+        post_to_admin(admin_message)
         with open("last_post.txt", "w") as file:
             file.write(str(data['id']))
             file.close()
@@ -110,7 +121,10 @@ def send_only_text(data, text):
                   "disable_notification": config.tg_bot.notification}
     result = requests.post(request_url, params=params)
     if result.status_code == 200:
-        print(data['id'], result.ok, 'Фотографии: 0', 'send_only_text', text[:15])
+        time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
+        admin_message = f"{data['id']}, {result.ok}, Фотографии: 0, send_only_text, {time_now}"
+        print(admin_message)
+        post_to_admin(admin_message)
         with open("last_post.txt", "w") as file:
             file.write(str(data['id']))
             file.close()
@@ -125,21 +139,26 @@ class Repost:
         try:
             self.signer_id = _get_username(data['copy_history'][0]['signer_id'])
         except KeyError:
-            self.signer_id = 'Анонимно'
+            self.signer_id = 'Anonymously'
         self.txt = data['copy_history'][0]['text']
         self.paid = '<i>          Платная реклама</i>' if data.get('marked_as_ads') else ''
         self._group_id = data['copy_history'][0]['from_id']
         self._group_name = session.method('groups.getById', {'group_id': -self._group_id})[0]['name']
         self.repost_group = f'<a href="https://vk.com/public{self._group_id}">{self._group_name}</a>'
-        self.url_sign = 'vk.com/id' + str(self.signer_id)
+        self.url_sign = 'vk.com/id' + str(data['copy_history'][0]['signer_id'])
         self.postbot = 'предложить новость @pgtlenino_bot'
         self.photo = 'photo'
-        self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
+        if self.signer_id != 'Anonymously':
+            self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
                     self.txt + f'\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.paid}\n{self.postbot}'
+        else:
+            self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
+                    self.txt + f'\nАнонимно\n{self.paid}\n{self.postbot}'
 
     def send_to_tg(self):
         self._images = scrape_repost_photos(self.data, image_list=[])
-        if self.data['copy_history'][0]['attachments'] == [] or 'video' in self.data['copy_history'][0]['attachments'][0]:
+        if self.data['copy_history'][0]['attachments'] == [] or 'video' in self.data['copy_history'][0]['attachments'][
+            0]:
             send_only_text(self.data, self.text)
         else:
             if len(self.data['copy_history'][0]['text']) < 950:
@@ -159,12 +178,15 @@ class NormalPosting:
         try:
             self.signer_id = _get_username(data['signer_id'])
         except KeyError:
-            self.signer_id = 'Анонимно'
+            self.signer_id = 'Anonymously'
         self.txt = data['text']
-        self.url_sign = 'vk.com/id' + str(self.signer_id)
+        self.url_sign = 'vk.com/id' + str(data['signer_id'])
         self.postbot = 'предложить новость @pgtlenino_bot'
         self.photo = 'photo'
-        self.text = self.txt + f'\n\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.postbot}'
+        if self.signer_id != 'Anonymously':
+            self.text = self.txt + f'\n\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.postbot}'
+        else:
+            self.text = self.txt + f'\n\nАнонимно\n{self.postbot}'
 
     def send_to_tg(self):
         self._images = scrape_normalposting_photos(self.data, image_list=[])
@@ -173,6 +195,7 @@ class NormalPosting:
         else:
             if len(self.data['text']) < 950:
                 send_with_media(self.data, self._images, self.text, 'photo')
+                time.sleep(3)
             else:
                 send_with_media(self.data, self._images, '', 'photo')
                 send_only_text(self.data, self.text)
@@ -235,9 +258,12 @@ def main():
             else:
                 post = NormalPosting(unpublished[i])
                 post.send_to_tg()
-        path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
-        shutil.rmtree(path)
-        os.mkdir('x_image')
+        if len(os.listdir('x_image')) > 0:
+            path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
+            shutil.rmtree(path)
+            os.mkdir('x_image')
+        else:
+            pass
         exp_list = [i for i in range(0, 600)]
         for i in tqdm(exp_list):
             time.sleep(1)
@@ -247,5 +273,4 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print('KeyboardInterrupt: Скрипт остановлен')
-
+        print('Скрипт остановлен')
