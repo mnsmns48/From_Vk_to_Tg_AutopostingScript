@@ -145,7 +145,10 @@ class Repost:
         self._group_id = data['copy_history'][0]['from_id']
         self._group_name = session.method('groups.getById', {'group_id': -self._group_id})[0]['name']
         self.repost_group = f'<a href="https://vk.com/public{self._group_id}">{self._group_name}</a>'
-        self.url_sign = 'vk.com/id' + str(data['copy_history'][0]['signer_id'])
+        try:
+            self.url_sign = 'vk.com/id' + str(data.get(data['copy_history'][0]['signer_id']))
+        except KeyError:
+            self.url_sign = ''
         self.postbot = 'предложить новость @pgtlenino_bot'
         self.photo = 'photo'
         if self.signer_id != 'Anonymously':
@@ -180,7 +183,10 @@ class NormalPosting:
         except KeyError:
             self.signer_id = 'Anonymously'
         self.txt = data['text']
-        self.url_sign = 'vk.com/id' + str(data['signer_id'])
+        try:
+            self.url_sign = 'vk.com/id' + str(data.get(data['signer_id']))
+        except KeyError:
+            self.url_sign = ''
         self.postbot = 'предложить новость @pgtlenino_bot'
         self.photo = 'photo'
         if self.signer_id != 'Anonymously':
