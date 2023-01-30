@@ -153,14 +153,15 @@ class Repost:
         self.photo = 'photo'
         if self.signer_id != 'Anonymously':
             self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                    self.txt + f'\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.paid}\n{self.postbot}'
+                        self.txt + f'\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.paid}\n{self.postbot}'
         else:
             self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                    self.txt + f'\nАнонимно\n{self.paid}\n{self.postbot}'
+                        self.txt + f'\nАнонимно\n{self.paid}\n{self.postbot}'
 
     def send_to_tg(self):
         self._images = scrape_repost_photos(self.data, image_list=[])
-        if self.data['copy_history'][0]['attachments'] == [] or 'video' in self.data['copy_history'][0]['attachments'][0]:
+        if self.data['copy_history'][0]['attachments'] == [] or 'video' in self.data['copy_history'][0]['attachments'][
+            0]:
             send_only_text(self.data, self.text)
         else:
             if len(self.data['copy_history'][0]['text']) < 950:
@@ -251,6 +252,10 @@ def new_post_list(data):
 def main():
     while True:
         data_list = connect(config.tg_bot.amount_post_list)
+        for i in range(len(data_list)):
+            if data_list[i].get('is_pinned'):
+                data_list.remove(data_list[i])
+                break
         new_post_count = len(new_post_list(data_list))
         print(f'Количество новых постов: {new_post_count}')
         unpublished = []
@@ -263,12 +268,12 @@ def main():
             else:
                 post = NormalPosting(unpublished[i])
                 post.send_to_tg()
-        if len(os.listdir('x_image')) > 0:
-            path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
-            shutil.rmtree(path)
-            os.mkdir('x_image')
-        else:
-            pass
+            if len(os.listdir('x_image')) > 0:
+                path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
+                shutil.rmtree(path)
+                os.mkdir('x_image')
+            else:
+                pass
         exp_list = [i for i in range(0, 600)]
         for i in tqdm(exp_list):
             time.sleep(1)
