@@ -31,7 +31,7 @@ def scrape_repost_photos(data, image_list):
         if 'doc' in data['copy_history'][0]['attachments'][0]:
             count_att = len(data['copy_history'][0]['attachments'])
             for i in range(count_att):
-                if 'photo' in data['copy_history'][0]['attachments'][i]:
+                if 'doc' in data['copy_history'][0]['attachments'][i]:
                     image_list.append(f'x_image/{data["id"]}_{i}.jpg')
                     photo = requests.get(
                         data['copy_history'][0]['attachments'][i]['doc']['preview']['photo']['sizes'][-1]['src'])
@@ -58,7 +58,7 @@ def scrape_normalposting_photos(data, image_list):
             return image_list
         if 'doc' in data['attachments'][0]:
             for i in range(len(data['attachments'])):
-                if 'photo' in data['attachments'][i]:
+                if 'doc' in data['attachments'][i]:
                     image_list.append(f'x_image/{data["id"]}_{i}.jpg')
                     photo = requests.get(
                         data['attachments'][i]['doc']['preview']['photo']['sizes'][-1]['src'])
@@ -146,7 +146,7 @@ class Repost:
         self._group_name = session.method('groups.getById', {'group_id': -self._group_id})[0]['name']
         self.repost_group = f'<a href="https://vk.com/public{self._group_id}">{self._group_name}</a>'
         try:
-            self.url_sign = 'vk.com/id' + str(data.get(data['copy_history'][0]['signer_id']))
+            self.url_sign = 'vk.com/id' + str(data['copy_history'][0].get('signer_id'))
         except KeyError:
             self.url_sign = ''
         self.postbot = 'предложить новость @pgtlenino_bot'
@@ -160,8 +160,7 @@ class Repost:
 
     def send_to_tg(self):
         self._images = scrape_repost_photos(self.data, image_list=[])
-        if self.data['copy_history'][0]['attachments'] == [] or 'video' in self.data['copy_history'][0]['attachments'][
-            0]:
+        if self.data['copy_history'][0]['attachments'] == [] or 'video' in self.data['copy_history'][0]['attachments'][0]:
             send_only_text(self.data, self.text)
         else:
             if len(self.data['copy_history'][0]['text']) < 950:
@@ -184,7 +183,7 @@ class NormalPosting:
             self.signer_id = 'Anonymously'
         self.txt = data['text']
         try:
-            self.url_sign = 'vk.com/id' + str(data.get(data['signer_id']))
+            self.url_sign = 'vk.com/id' + str(data.get('signer_id'))
         except KeyError:
             self.url_sign = ''
         self.postbot = 'предложить новость @pgtlenino_bot'
