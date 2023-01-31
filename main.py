@@ -149,14 +149,13 @@ class Repost:
             self.url_sign = 'vk.com/id' + str(data['copy_history'][0].get('signer_id'))
         except KeyError:
             self.url_sign = ''
-        self.postbot = 'предложить новость @pgtlenino_bot'
         self.photo = 'photo'
         if self.signer_id != 'Anonymously':
             self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                        self.txt + f'\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.paid}\n{self.postbot}'
+                        self.txt + f'\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.paid}'
         else:
             self.text = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                        self.txt + f'\nАнонимно\n{self.paid}\n{self.postbot}'
+                        self.txt + f'\nАнонимно\n{self.paid}'
 
     def send_to_tg(self):
         self._images = scrape_repost_photos(self.data, image_list=[])
@@ -187,12 +186,11 @@ class NormalPosting:
             self.url_sign = 'vk.com/id' + str(data.get('signer_id'))
         except KeyError:
             self.url_sign = ''
-        self.postbot = 'предложить новость @pgtlenino_bot'
         self.photo = 'photo'
         if self.signer_id != 'Anonymously':
-            self.text = self.txt + f'\n\n<a href="{self.url_sign}">{self.signer_id}</a>\n{self.postbot}'
+            self.text = self.txt + f'\n\n<a href="{self.url_sign}">{self.signer_id}</a>'
         else:
-            self.text = self.txt + f'\n\nАнонимно\n{self.postbot}'
+            self.text = self.txt + f'\n\nАнонимно'
 
     def send_to_tg(self):
         self._images = scrape_normalposting_photos(self.data, image_list=[])
@@ -268,12 +266,12 @@ def main():
             else:
                 post = NormalPosting(unpublished[i])
                 post.send_to_tg()
-            if len(os.listdir('x_image')) > 0:
-                path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
-                shutil.rmtree(path)
-                os.mkdir('x_image')
-            else:
-                pass
+        if len(os.listdir('x_image')) > 0:
+            path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
+            shutil.rmtree(path)
+            os.mkdir('x_image')
+        else:
+            pass
         exp_list = [i for i in range(0, 600)]
         for i in tqdm(exp_list):
             time.sleep(1)
