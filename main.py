@@ -34,7 +34,7 @@ class Attachments:
 
 def scrape_photos(data):
     box = Attachments(data)
-    if len(data['attachments']) > 0:
+    if data.get('attachments') or (data.get('copy_history') and data['copy_history'][0].get('attachments')):
         for i in range(len(box.att)):
             photo = requests.get(box.att[i])
             with open(f'x_image/{data["id"]}_{i}.jpg', 'wb') as fd:
@@ -62,6 +62,28 @@ def send_with_media(data, images, caption, photo='photo'):
     if result.status_code == 200:
         time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
         admin_message = f"{data['id']}, {result.ok}, Фотографии:, {len(list_attach)}, send_with_media, {time_now}"
+        print(admin_message)
+        with open("last_post.txt", "w") as file:
+            file.write(str(data['id']))
+            file.close()
+
+
+def send_only_media(data, images, photo='photo'):
+    request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMediaGroup"
+    files = {f'post_name{item}': open(f'{images[item]}', 'rb') for item in range(len(images))}
+    list_attach = [
+        {"type": photo, "media": "attach://post_name0", "parse_mode": 'HTML'}]
+    if len(images) >= 2:
+        for item in range(len(images) - 1):
+            list_attach.append({"type": photo, "media": f"attach://post_name{item + 1}"})
+    media = json.dumps(list_attach)
+    params = {"chat_id": config.tg_bot.tg_chat,
+              "media": media,
+              "disable_notification": config.tg_bot.notification}
+    result = requests.post(request_url, params=params, files=files)
+    if result.status_code == 200:
+        time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
+        admin_message = f"{data['id']}, {result.ok}, Фотографии:, {len(list_attach)}, send_only_media, {time_now}"
         print(admin_message)
         with open("last_post.txt", "w") as file:
             file.write(str(data['id']))
@@ -109,6 +131,10 @@ class Posting:
         self.paid = '<i>          Платная реклама</i>' if data.get('marked_as_ads') else ''
         self.repost = self.data.get('copy_history')
         if self.repost is None:
+            if self.data['attachments']:
+                self.att_key = 1
+            else:
+                self.att_key = 0
             if data.get('signer_id') is None:
                 self.signer_id = 'Anonymously'
                 self.signer_url = None
@@ -123,6 +149,10 @@ class Posting:
                 self.message = self.txt + f'\n\nАнонимно\n{self.paid}'
 
         else:
+            if self.data['copy_history'][0]['attachments']:
+                self.att_key = 1
+            else:
+                self.att_key = 0
             if data['copy_history'][0].get('signer_id') is None:
                 self.signer_id = 'Anonymously'
                 self.signer_url = None
@@ -143,15 +173,16 @@ class Posting:
 
     def send_to_tg(self):
         self._images = scrape_photos(self.data)
-        if self.data['attachments'] == [] or 'video' in self.data['attachments'][0]:
+        if self.att_key == 0:
             send_only_text(self.data, self.message)
         else:
-            if len(self.message) < 1000:
+            if len(self.message) < 1024:
                 send_with_media(self.data, self._images, self.message)
                 time.sleep(3)
             else:
-                send_with_media(self.data, self._images, None)
+                send_only_media(self.data, self._images)
                 send_only_text(self.data, self.message)
+                time.sleep(3)
 
 
 def write_last_post_id(text):
@@ -212,12 +243,12 @@ if __name__ == '__main__':
             for i in range(len(unpublished)):
                 post = Posting(unpublished[i])
                 post.send_to_tg()
-            if len(os.listdir('x_image')) > 0:
-                path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
-                shutil.rmtree(path)
-                os.mkdir('x_image')
-            else:
-                pass
+            # if len(os.listdir('x_image')) > 0:
+            #     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
+            #     shutil.rmtree(path)
+            #     os.mkdir('x_image')
+            # else:
+            #     pass
             exp_list = [i for i in range(0, 600)]
             for i in tqdm(exp_list):
                 time.sleep(1)
