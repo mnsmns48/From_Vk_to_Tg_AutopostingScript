@@ -91,28 +91,23 @@ def send_only_media(data, images, photo='photo'):
 
 
 def send_only_text(data, text):
+    link = str()
     try:
         video_owner_id = str(data['attachments'][0]['video']['owner_id'])
         video_id = str(data['attachments'][0]['video']['id'])
         if 'video' in data['attachments'][0]:
-            link = f'\n\n<a href="https://vk.com/video{video_owner_id}_{video_id}">→→→→→ Видео ссылка ←←←←←</a>'
-        else:
-            link = ''
+            link = f'\n<a href="https://vk.com/video{video_owner_id}_{video_id}">→→→→→ Видео ссылка ←←←←←</a>'
     except (IndexError, KeyError):
-        link = ''
+        link = None
     request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMessage"
-    if len(data['attachments']) > 0:
-        params = {"chat_id": config.tg_bot.tg_chat,
-                  "text": text + link,
-                  "parse_mode": 'HTML',
-                  "disable_web_page_preview": False,
-                  "disable_notification": config.tg_bot.notification}
-    else:
-        params = {"chat_id": config.tg_bot.tg_chat,
-                  "text": text + link,
-                  "parse_mode": 'HTML',
-                  "disable_web_page_preview": True,
-                  "disable_notification": config.tg_bot.notification}
+    params = {"chat_id": config.tg_bot.tg_chat,
+              "text": text,
+              "parse_mode": 'HTML',
+              "disable_web_page_preview": True,
+              "disable_notification": config.tg_bot.notification}
+    if link:
+        params.update({"text": text + link})
+        params.update({"disable_web_page_preview": False})
     result = requests.post(request_url, params=params)
     if result.status_code == 200:
         time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
@@ -125,17 +120,19 @@ def send_only_text(data, text):
 
 class Posting:
     def __init__(self, data):
+        self.video_key = 0
         self._images = None
         self.data = data
         self.id = data['id']
-        self.paid = '<i>          Платная реклама</i>' if data.get('marked_as_ads') else ''
+        self.paid = '<i>          Платная реклама</i>' if self.data.get('marked_as_ads') else ''
         self.repost = self.data.get('copy_history')
         if self.repost is None:
             if self.data['attachments']:
                 self.att_key = 1
+                self.video_key = 1 if self.data['attachments'][0].get('type') == 'video' else None
             else:
                 self.att_key = 0
-            if data.get('signer_id') is None:
+            if self.data.get('signer_id') is None:
                 self.signer_id = 'Anonymously'
                 self.signer_url = None
             else:
@@ -144,16 +141,17 @@ class Posting:
                 self.signer_url = 'vk.com/id' + str(data.get('signer_id'))
             self.txt = self.data.get('text')
             if self.signer_id != 'Anonymously':
-                self.message = self.txt + f'\n\n<a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
+                self.message = self.txt + f'\n<a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
             else:
-                self.message = self.txt + f'\n\nАнонимно\n{self.paid}'
+                self.message = self.txt + f'\nАнонимно\n{self.paid}'
 
         else:
             if self.data['copy_history'][0]['attachments']:
                 self.att_key = 1
+                self.video_key = 1 if self.data['copy_history'][0]['attachments'][0].get('type') == 'video' else None
             else:
                 self.att_key = 0
-            if data['copy_history'][0].get('signer_id') is None:
+            if self.data['copy_history'][0].get('signer_id') is None:
                 self.signer_id = 'Anonymously'
                 self.signer_url = None
             else:
@@ -173,7 +171,7 @@ class Posting:
 
     def send_to_tg(self):
         self._images = scrape_photos(self.data)
-        if self.att_key == 0:
+        if self.att_key == 0 or self.video_key == 1:
             send_only_text(self.data, self.message)
         else:
             if len(self.message) < 1024:
