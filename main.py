@@ -1,4 +1,4 @@
-import vk_api, requests, json, time, os, shutil
+import vk_api, requests, json, time
 from datetime import datetime
 from config import load_config
 from tqdm import tqdm
@@ -45,12 +45,14 @@ def scrape_photos(data):
     return box.image_list
 
 
-def send_with_media(data, images, caption, photo='photo'):
+def send_media(data, images, caption, char_exceed, photo='photo'):
     request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMediaGroup"
     files = {f'post_name{item}': open(f'{images[item]}', 'rb') for item in range(len(images))}
     caption = caption
     list_attach = [
         {"type": photo, "media": "attach://post_name0", "caption": caption, "parse_mode": 'HTML'}]
+    if not char_exceed:
+        list_attach[0].pop('caption')
     if len(images) >= 2:
         for item in range(len(images) - 1):
             list_attach.append({"type": photo, "media": f"attach://post_name{item + 1}"})
@@ -68,29 +70,7 @@ def send_with_media(data, images, caption, photo='photo'):
             file.close()
 
 
-def send_only_media(data, images, photo='photo'):
-    request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMediaGroup"
-    files = {f'post_name{item}': open(f'{images[item]}', 'rb') for item in range(len(images))}
-    list_attach = [
-        {"type": photo, "media": "attach://post_name0", "parse_mode": 'HTML'}]
-    if len(images) >= 2:
-        for item in range(len(images) - 1):
-            list_attach.append({"type": photo, "media": f"attach://post_name{item + 1}"})
-    media = json.dumps(list_attach)
-    params = {"chat_id": config.tg_bot.tg_chat,
-              "media": media,
-              "disable_notification": config.tg_bot.notification}
-    result = requests.post(request_url, params=params, files=files)
-    if result.status_code == 200:
-        time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
-        admin_message = f"{data['id']}, {result.ok}, Фотографии:, {len(list_attach)}, send_only_media, {time_now}"
-        print(admin_message)
-        with open("last_post.txt", "w") as file:
-            file.write(str(data['id']))
-            file.close()
-
-
-def send_only_text(data, text):
+def send_text(data, text):
     link = str()
     try:
         video_owner_id = str(data['attachments'][0]['video']['owner_id'])
@@ -120,7 +100,8 @@ def send_only_text(data, text):
 
 class Posting:
     def __init__(self, data):
-        self.video_key = 0
+        self._char_exceed = None
+        self._video_key = None
         self._images = None
         self.data = data
         self.id = data['id']
@@ -128,10 +109,10 @@ class Posting:
         self.repost = self.data.get('copy_history')
         if self.repost is None:
             if self.data['attachments']:
-                self.att_key = 1
-                self.video_key = 1 if self.data['attachments'][0].get('type') == 'video' else None
+                self._att_key = 1
+                self._video_key = 1 if self.data['attachments'][0].get('type') == 'video' else None
             else:
-                self.att_key = 0
+                self._att_key = 0
             if self.data.get('signer_id') is None:
                 self.signer_id = 'Anonymously'
                 self.signer_url = None
@@ -147,10 +128,10 @@ class Posting:
 
         else:
             if self.data['copy_history'][0]['attachments']:
-                self.att_key = 1
-                self.video_key = 1 if self.data['copy_history'][0]['attachments'][0].get('type') == 'video' else None
+                self._att_key = 1
+                self._video_key = 1 if self.data['copy_history'][0]['attachments'][0].get('type') == 'video' else None
             else:
-                self.att_key = 0
+                self._att_key = 0
             if self.data['copy_history'][0].get('signer_id') is None:
                 self.signer_id = 'Anonymously'
                 self.signer_url = None
@@ -170,16 +151,17 @@ class Posting:
                                self.txt + f'\nАнонимно\n{self.paid}'
 
     def send_to_tg(self):
+        self._char_exceed = True if len(self.message) < 1024 else False
         self._images = scrape_photos(self.data)
-        if self.att_key == 0 or self.video_key == 1:
-            send_only_text(self.data, self.message)
+        if self._att_key == 0 or self._video_key == 1:
+            send_text(self.data, self.message)
         else:
-            if len(self.message) < 1024:
-                send_with_media(self.data, self._images, self.message)
+            if self._char_exceed:
+                send_media(self.data, self._images, self.message, self._char_exceed)
                 time.sleep(3)
             else:
-                send_only_media(self.data, self._images)
-                send_only_text(self.data, self.message)
+                send_media(self.data, self._images, self.message, self._char_exceed)
+                send_text(self.data, self.message)
                 time.sleep(3)
 
 
