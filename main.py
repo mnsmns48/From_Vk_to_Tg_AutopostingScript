@@ -1,4 +1,4 @@
-import vk_api, requests, json, time
+import vk_api, requests, json, time, os, shutil
 from datetime import datetime
 from config import load_config
 from tqdm import tqdm
@@ -121,10 +121,12 @@ class Posting:
                 self.signer_fullname = _get_username(data['signer_id'])
                 self.signer_url = 'vk.com/id' + str(data.get('signer_id'))
             self.txt = self.data.get('text')
-            if self.signer_id != 'Anonymously':
-                self.message = self.txt + f'\n<a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
-            else:
+            if self.signer_id == 'Anonymously':
                 self.message = self.txt + f'\nАнонимно\n{self.paid}'
+            elif self._video_key == 1:
+                self.message = self.txt
+            else:
+                self.message = self.txt + f'\n<a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
 
         else:
             if self.data['copy_history'][0]['attachments']:
@@ -143,12 +145,15 @@ class Posting:
             self._group_name = session.method('groups.getById', {'group_id': -self._group_id})[0]['name']
             self.txt = data['copy_history'][0].get('text')
             self.repost_group = f'<a href="https://vk.com/public{self._group_id}">{self._group_name}</a>'
-            if self.signer_id != 'Anonymously':
+            if self.signer_id == 'Anonymously':
                 self.message = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                               self.txt + f'\n<a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
+                               self.txt + f'\n          Анонимно\n{self.paid}'
+            elif self._video_key == 1:
+                self.message = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
+                               self.txt + f'\n{self.paid}'
             else:
                 self.message = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                               self.txt + f'\nАнонимно\n{self.paid}'
+                               self.txt + f'\n          <a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
 
     def send_to_tg(self):
         self._char_exceed = True if len(self.message) < 1024 else False
@@ -223,12 +228,12 @@ if __name__ == '__main__':
             for i in range(len(unpublished)):
                 post = Posting(unpublished[i])
                 post.send_to_tg()
-            # if len(os.listdir('x_image')) > 0:
-            #     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
-            #     shutil.rmtree(path)
-            #     os.mkdir('x_image')
-            # else:
-            #     pass
+            if len(os.listdir('x_image')) > 0:
+                path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
+                shutil.rmtree(path)
+                os.mkdir('x_image')
+            else:
+                pass
             exp_list = [i for i in range(0, 600)]
             for i in tqdm(exp_list):
                 time.sleep(1)
