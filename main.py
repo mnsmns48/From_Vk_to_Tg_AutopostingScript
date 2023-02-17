@@ -2,6 +2,7 @@ import vk_api, requests, json, time, os, shutil
 from datetime import datetime
 from config import load_config
 from tqdm import tqdm
+from base import users
 
 config = load_config(".env")
 session = vk_api.VkApi(token=config.tg_bot.vk_api_token)
@@ -30,6 +31,30 @@ class Attachments:
                     self.att.append(
                         data['copy_history'][0]['attachments'][i]['doc']['preview']['photo']['sizes'][-1].get('src'))
                     self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
+
+
+def find_user_func(data):
+    try:
+        chars = '☎️,►,+,(,),-,+,'
+        text = data.get('text').translate(str.maketrans('', '', chars)).split()
+        for i in text:
+            if '7978' in i:
+                number = i
+            elif '8978' in i:
+                number = i
+            elif '978' in i:
+                ind = text.index(i)
+                number = i
+                if text[ind - 1].isdigit():
+                    number = text[ind - 1] + number
+                while len(number) != 11:
+                    k = 1
+                    number = number + text[ind + k]
+                    k += 1
+
+        return number
+    except UnboundLocalError:
+        return None
 
 
 def scrape_photos(data):
@@ -84,7 +109,8 @@ def send_text(data, text):
               "text": text,
               "parse_mode": 'HTML',
               "disable_web_page_preview": True,
-              "disable_notification": config.tg_bot.notification}
+              "disable_notification": config.tg_bot.notification
+              }
     if link:
         params.update({"text": text + link})
         params.update({"disable_web_page_preview": False})
@@ -114,11 +140,19 @@ class Posting:
             else:
                 self._att_key = 0
             if self.data.get('signer_id') is None:
-                self.signer_id = 'Anonymously'
-                self.signer_url = None
+                try:
+                    self._fnd_user_id = users.get(find_user_func(self.data))
+                    self.signer_id = self._fnd_user_id
+                    self.signer_url = 'vk.com/id' + str(self.signer_id)
+                    self.signer_fullname = _get_username(self.signer_id)
+                    users.update({find_user_func(self.data): self.signer_id})
+                except:
+                    self.signer_id = 'Anonymously'
+                    self.signer_url = None
             else:
                 self.signer_id = data['signer_id']
-                self.signer_fullname = _get_username(data['signer_id'])
+                users.update({find_user_func(self.data): self.signer_id})
+                self.signer_fullname = _get_username(self.signer_id)
                 self.signer_url = 'vk.com/id' + str(data.get('signer_id'))
             self.txt = self.data.get('text')
             if self.signer_id == 'Anonymously':
