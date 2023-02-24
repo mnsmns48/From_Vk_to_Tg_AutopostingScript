@@ -1,127 +1,12 @@
-import vk_api, requests, json, time, os, shutil
-from datetime import datetime
-from config import load_config
+import requests, time, os, shutil
 from tqdm import tqdm
-from base import users
+from config import load_config
+
+from db_work import _def_signer_id_func, _get_username
+from attachments import scrape_photos, send_text, send_media, scrape_data
 
 config = load_config(".env")
-session = vk_api.VkApi(token=config.tg_bot.vk_api_token)
-vk = session.get_api()
-
-
-class Attachments:
-    def __init__(self, data):
-        self.att = []
-        self.image_list = []
-        self.repost = data.get('copy_history')
-        if self.repost is None:
-            for i in range(len(data['attachments'])):
-                if 'photo' in data['attachments'][i]:
-                    self.att.append(data['attachments'][i]['photo']['sizes'][-1].get('url'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-                if 'doc' in data['attachments'][i]:
-                    self.att.append(data['attachments'][i]['doc']['preview']['photo']['sizes'][-1].get('src'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-        else:
-            for i in range(len(data['copy_history'][0]['attachments'])):
-                if 'photo' in data['copy_history'][0]['attachments'][i]:
-                    self.att.append(data['copy_history'][0]['attachments'][i]['photo']['sizes'][-1].get('url'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-                if 'doc' in data['copy_history'][0]['attachments'][i]:
-                    self.att.append(
-                        data['copy_history'][0]['attachments'][i]['doc']['preview']['photo']['sizes'][-1].get('src'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-
-
-def find_user_func(data):
-    try:
-        chars = '☎️,►,+,(,),-,+,'
-        text = data.get('text').translate(str.maketrans('', '', chars)).split()
-        for i in text:
-            if '7978' in i:
-                number = i
-            elif '8978' in i:
-                number = i
-            elif '978' in i:
-                ind = text.index(i)
-                number = i
-                if text[ind - 1].isdigit():
-                    number = text[ind - 1] + number
-                while len(number) != 11:
-                    k = 1
-                    number = number + text[ind + k]
-                    k += 1
-
-        return number
-    except UnboundLocalError:
-        return None
-
-
-def scrape_photos(data):
-    box = Attachments(data)
-    if data.get('attachments') or (data.get('copy_history') and data['copy_history'][0].get('attachments')):
-        for i in range(len(box.att)):
-            photo = requests.get(box.att[i])
-            with open(f'x_image/{data["id"]}_{i}.jpg', 'wb') as fd:
-                for chunk in photo.iter_content(50000):
-                    fd.write(chunk)
-                    time.sleep(2.5)
-        return box.image_list
-    return box.image_list
-
-
-def send_media(data, images, caption, char_exceed, photo='photo'):
-    request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMediaGroup"
-    files = {f'post_name{item}': open(f'{images[item]}', 'rb') for item in range(len(images))}
-    caption = caption
-    list_attach = [
-        {"type": photo, "media": "attach://post_name0", "caption": caption, "parse_mode": 'HTML'}]
-    if not char_exceed:
-        list_attach[0].pop('caption')
-    if len(images) >= 2:
-        for item in range(len(images) - 1):
-            list_attach.append({"type": photo, "media": f"attach://post_name{item + 1}"})
-    media = json.dumps(list_attach)
-    params = {"chat_id": config.tg_bot.tg_chat,
-              "media": media,
-              "disable_notification": config.tg_bot.notification}
-    result = requests.post(request_url, params=params, files=files)
-    if result.status_code == 200:
-        time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
-        admin_message = f"{data['id']}, {result.ok}, Фотографии:, {len(list_attach)}, send_with_media, {time_now}"
-        print(admin_message)
-        with open("last_post.txt", "w") as file:
-            file.write(str(data['id']))
-            file.close()
-
-
-def send_text(data, text):
-    link = str()
-    try:
-        video_owner_id = str(data['attachments'][0]['video']['owner_id'])
-        video_id = str(data['attachments'][0]['video']['id'])
-        if 'video' in data['attachments'][0]:
-            link = f'\n<a href="https://vk.com/video{video_owner_id}_{video_id}">→→→→→ Видео ссылка ←←←←←</a>'
-    except (IndexError, KeyError):
-        link = None
-    request_url = "https://api.telegram.org/bot" + config.tg_bot.bot_token + "/sendMessage"
-    params = {"chat_id": config.tg_bot.tg_chat,
-              "text": text,
-              "parse_mode": 'HTML',
-              "disable_web_page_preview": True,
-              "disable_notification": config.tg_bot.notification
-              }
-    if link:
-        params.update({"text": text + link})
-        params.update({"disable_web_page_preview": False})
-    result = requests.post(request_url, params=params)
-    if result.status_code == 200:
-        time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
-        admin_message = f"{data['id']}, {result.ok}, Фотографии: 0, send_only_text, {time_now}"
-        print(admin_message)
-        with open("last_post.txt", "w") as file:
-            file.write(str(data['id']))
-            file.close()
+data_list = list()
 
 
 class Posting:
@@ -130,64 +15,22 @@ class Posting:
         self._video_key = None
         self._images = None
         self.data = data
-        self.id = data['id']
-        self.paid = '<i>          Платная реклама</i>' if self.data.get('marked_as_ads') else ''
-        self.repost = self.data.get('copy_history')
-        if self.repost is None:
-            if self.data['attachments']:
-                self._att_key = 1
-                self._video_key = 1 if self.data['attachments'][0].get('type') == 'video' else None
-            else:
-                self._att_key = 0
-            if self.data.get('signer_id') is None:
-                try:
-                    self._fnd_user_id = users.get(find_user_func(self.data))
-                    self.signer_id = self._fnd_user_id
-                    self.signer_url = 'vk.com/id' + str(self.signer_id)
-                    self.signer_fullname = _get_username(self.signer_id)
-                    users.update({find_user_func(self.data): self.signer_id})
-                except:
-                    self.signer_id = 'Anonymously'
-                    self.signer_url = None
-            else:
-                self.signer_id = data['signer_id']
-                users.update({find_user_func(self.data): self.signer_id})
-                self.signer_fullname = _get_username(self.signer_id)
-                self.signer_url = 'vk.com/id' + str(data.get('signer_id'))
-            self.txt = self.data.get('text')
-            if self.signer_id == 'Anonymously':
-                self.message = self.txt + f'\nАнонимно\n{self.paid}'
-            elif self._video_key == 1:
-                self.message = self.txt
-            else:
-                self.message = self.txt + f'\n<a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
-
+        self.id = self.data['id']
+        self.paid = '<i>          Платная реклама</i>' if self.data.get('marked_as_ads') else ' '
+        self.txt = self.data.get('text')
+        self._att_key = 1 if self.data.get('attachments') else 0
+        self.repost = self.data.get('repost_text') if self.data.get('repost_text') else ' '
+        if self._att_key == 1:
+            self._video_key = 1 if self.data['attachments'][0].get('type') == 'video' else 0
+        self.signer_id = _def_signer_id_func(self.data)
+        if self.signer_id == 'Anonymously':
+            self.message = self.txt + f'\n          Анонимно'
+        elif self._video_key == 1:
+            self.message = self.txt
         else:
-            if self.data['copy_history'][0]['attachments']:
-                self._att_key = 1
-                self._video_key = 1 if self.data['copy_history'][0]['attachments'][0].get('type') == 'video' else None
-            else:
-                self._att_key = 0
-            if self.data['copy_history'][0].get('signer_id') is None:
-                self.signer_id = 'Anonymously'
-                self.signer_url = None
-            else:
-                self.signer_id = data['copy_history'][0]['signer_id']
-                self.signer_fullname = _get_username(data['copy_history'][0]['signer_id'])
-                self.signer_url = 'vk.com/id' + str(data['copy_history'][0].get('signer_id'))
-            self._group_id = data['copy_history'][0]['from_id']
-            self._group_name = session.method('groups.getById', {'group_id': -self._group_id})[0]['name']
-            self.txt = data['copy_history'][0].get('text')
-            self.repost_group = f'<a href="https://vk.com/public{self._group_id}">{self._group_name}</a>'
-            if self.signer_id == 'Anonymously':
-                self.message = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                               self.txt + f'\n          Анонимно\n{self.paid}'
-            elif self._video_key == 1:
-                self.message = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                               self.txt + f'\n{self.paid}'
-            else:
-                self.message = f'<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n{self.repost_group}\n' + \
-                               self.txt + f'\n          <a href="{self.signer_url}">{self.signer_fullname}</a>\n{self.paid}'
+            self.signer_fullname = _get_username(self.signer_id)
+            self.signer_url = 'vk.com/id' + str(self.signer_id)
+            self.message = f"{self.repost}\n{self.txt}\n<a href='{self.signer_url}'>          {self.signer_fullname}</a>\n{self.paid}"
 
     def send_to_tg(self):
         self._char_exceed = True if len(self.message) < 1024 else False
@@ -228,11 +71,6 @@ def connect(count):
     return r.json()['response']['items']
 
 
-def _get_username(user_id):
-    username = session.method('users.get', {'user_id': user_id})[0]
-    return ' '.join((username['first_name'], username['last_name']))
-
-
 def new_post_list(data):
     posts = []
     for i in range(len(data)):
@@ -249,11 +87,9 @@ def new_post_list(data):
 if __name__ == '__main__':
     try:
         while True:
-            data_list = connect(config.tg_bot.amount_post_list)
-            for i in range(len(data_list)):
-                if data_list[i].get('is_pinned'):
-                    data_list.remove(data_list[i])
-                    break
+            big_data = connect(config.tg_bot.amount_post_list)
+            for i in range(len(big_data)):
+                data_list.append(scrape_data(big_data[i]))
             new_post_count = len(new_post_list(data_list))
             print(f'Количество новых постов: {new_post_count}')
             unpublished = []
