@@ -6,7 +6,7 @@ from db_work import _def_signer_id_func, _get_username, get_name_from_db
 from attachments import scrape_photos, send_text, send_media, scrape_data
 
 config = load_config(".env")
-data_list = list()
+
 
 
 class Posting:
@@ -52,10 +52,11 @@ class Posting:
 def write_last_post_id(text):
     with open("last_post.txt", "w") as file:
         file.write(text)
+        file.close()
 
 
 def read_last_post_id():
-    f = open('last_post.txt', 'r')
+    f = open("last_post.txt", "r")
     for line in f:
         return int(line)
 
@@ -74,7 +75,7 @@ def connect(count):
 
 
 def new_post_list(data):
-    posts = []
+    posts = list()
     for i in range(len(data)):
         posts.append(data[i]['id'])
     last_post = read_last_post_id()
@@ -89,14 +90,19 @@ def new_post_list(data):
 if __name__ == '__main__':
     try:
         while True:
+            data_list = list()
+            n = 0
             big_data = connect(config.tg_bot.amount_post_list)
-            for i in range(len(big_data)):
-                data_list.append(scrape_data(big_data[i]))
+            while n != len(big_data):
+                data_list.append(scrape_data(big_data[n]))
+                n += 1
+            big_data.clear()
             new_post_count = len(new_post_list(data_list))
             print(f'Количество новых постов: {new_post_count}')
             unpublished = []
             for n in range(new_post_count - 1, -1, -1):
                 unpublished.append(data_list[n])
+            data_list.clear()
             for i in range(len(unpublished)):
                 post = Posting(unpublished[i])
                 post.send_to_tg()
@@ -106,7 +112,7 @@ if __name__ == '__main__':
                 os.mkdir('x_image')
             else:
                 pass
-            exp_list = [i for i in range(0, 300)]
+            exp_list = [i for i in range(0, 20)]
             for i in tqdm(exp_list):
                 time.sleep(1)
     except KeyboardInterrupt:
