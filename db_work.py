@@ -64,7 +64,7 @@ def _def_signer_id_func(data):
             if _fnd_user_id:
                 return signer_id
             else:
-                print(data.get('id'),'Write:', _fnd_user_ph, _get_username(signer_id), 'vk.com/id'+signer_id)
+                print(f"{data.get('id')} Write: {_fnd_user_ph} {_get_username(signer_id)} VK ID:{signer_id}")
                 write_base(signer_id, int(_fnd_user_ph))
                 return signer_id
         else:
