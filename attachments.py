@@ -100,10 +100,8 @@ def send_text(data, text):
 
 def scrape_data(data):
     if data.get('is_pinned'):
-        print(data.get('is_pinned'))
         return None
     if data.get('copy_history'):
-        print(data.get('copy_history'))
         data['from_id'] = data['copy_history'][0]['from_id']
         data['group_name'] = \
             session.method('groups.getById', {'group_id': -data['from_id']})[0]['name']

@@ -2,7 +2,7 @@ import requests, time, os, shutil
 from tqdm import tqdm
 from config import load_config
 
-from db_work import _def_signer_id_func, _get_username
+from db_work import _def_signer_id_func, _get_username, get_name_from_db
 from attachments import scrape_photos, send_text, send_media, scrape_data
 
 config = load_config(".env")
@@ -28,9 +28,11 @@ class Posting:
         elif self._video_key == 1:
             self.message = self.txt
         else:
-            self.signer_fullname = _get_username(self.signer_id)
+            self.signer_fullname = get_name_from_db(int(self.signer_id)) if get_name_from_db(int(self.signer_id)) \
+                else _get_username(self.signer_id)
             self.signer_url = 'vk.com/id' + str(self.signer_id)
-            self.message = f"{self.repost}\n{self.txt}\n<a href='{self.signer_url}'>          {self.signer_fullname}</a>\n{self.paid}"
+            self.message = f"{self.repost}\n{self.txt}" \
+                           f"\n<a href='{self.signer_url}'>          {self.signer_fullname}</a>\n{self.paid}"
 
     def send_to_tg(self):
         self._char_exceed = True if len(self.message) < 1024 else False
@@ -104,7 +106,7 @@ if __name__ == '__main__':
                 os.mkdir('x_image')
             else:
                 pass
-            exp_list = [i for i in range(0, 600)]
+            exp_list = [i for i in range(0, 300)]
             for i in tqdm(exp_list):
                 time.sleep(1)
     except KeyboardInterrupt:
