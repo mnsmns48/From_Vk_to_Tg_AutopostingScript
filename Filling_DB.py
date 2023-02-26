@@ -20,7 +20,7 @@ def connect(offset):
     return r.json()['response']['items']
 
 
-i = 20000 #499171 486119 465740 461382 459186
+i = 26000 #438136
 while True:
     try:
         data = connect(i)

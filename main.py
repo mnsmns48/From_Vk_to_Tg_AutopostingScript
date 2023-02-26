@@ -2,7 +2,7 @@ import requests, time, os, shutil
 from tqdm import tqdm
 from config import load_config
 
-from db_work import _def_signer_id_func, _get_username, get_name_from_db
+from db_work import _def_signer_id_func, _get_username, read_base
 from attachments import scrape_photos, send_text, send_media, scrape_data
 
 config = load_config(".env")
@@ -27,8 +27,8 @@ class Posting:
         elif self._video_key == 1:
             self.message = self.txt
         else:
-            self.signer_fullname = get_name_from_db(int(self.signer_id)) if get_name_from_db(int(self.signer_id)) \
-                else _get_username(self.signer_id)
+            self.signer_fullname = read_base('FULL_NAME', 'USER_ID', int(self.signer_id)) \
+                if read_base('FULL_NAME', 'USER_ID', int(self.signer_id)) else _get_username(self.signer_id)
             self.signer_url = 'vk.com/id' + str(self.signer_id)
             self.message = f"{self.repost}\n{self.txt}" \
                            f"\n<a href='{self.signer_url}'>          {self.signer_fullname}</a>\n{self.paid}"
@@ -60,19 +60,6 @@ def read_last_post_id():
         return int(line)
 
 
-def connect(count):
-    r = requests.get('https://api.vk.com/method/wall.get',
-                     params={
-                         'access_token': config.tg_bot.vk_token,
-                         'v': 5.131,
-                         'owner_id': config.tg_bot.owner_id,
-                         'count': count,
-                         'offset': 0
-                     })
-
-    return r.json()['response']['items']
-
-
 def new_post_list(data):
     posts = list()
     for i in range(len(data)):
@@ -84,6 +71,19 @@ def new_post_list(data):
     if list(reversed(posts)):
         print('Посты, готовящиеся к публикации: ', *list(reversed(posts)))
     return list(reversed(posts))
+
+
+def connect(count):
+    r = requests.get('https://api.vk.com/method/wall.get',
+                     params={
+                         'access_token': config.tg_bot.vk_token,
+                         'v': 5.131,
+                         'owner_id': config.tg_bot.owner_id,
+                         'count': count,
+                         'offset': 0
+                     })
+
+    return r.json()['response']['items']
 
 
 if __name__ == '__main__':
@@ -111,7 +111,7 @@ if __name__ == '__main__':
                 os.mkdir('x_image')
             else:
                 pass
-            exp_list = [i for i in range(0, 300)]
+            exp_list = [i for i in range(0, config.tg_bot.request_period)]
             for i in tqdm(exp_list):
                 time.sleep(1)
     except KeyboardInterrupt:

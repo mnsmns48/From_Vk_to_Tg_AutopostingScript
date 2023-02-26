@@ -11,29 +11,36 @@ class Attachments:
     def __init__(self, data):
         self.att = []
         self.image_list = []
-        self.repost = data.get('copy_history')
-        if self.repost is None:
-            for i in range(len(data['attachments'])):
-                if 'photo' in data['attachments'][i]:
-                    self.att.append(data['attachments'][i]['photo']['sizes'][-1].get('url'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-                if 'doc' in data['attachments'][i]:
-                    self.att.append(data['attachments'][i]['doc']['preview']['photo']['sizes'][-1].get('src'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-        else:
-            for i in range(len(data['copy_history'][0]['attachments'])):
-                if 'photo' in data['copy_history'][0]['attachments'][i]:
-                    self.att.append(data['copy_history'][0]['attachments'][i]['photo']['sizes'][-1].get('url'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
-                if 'doc' in data['copy_history'][0]['attachments'][i]:
-                    self.att.append(
-                        data['copy_history'][0]['attachments'][i]['doc']['preview']['photo']['sizes'][-1].get('src'))
-                    self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
+        for i in range(len(data['attachments'])):
+            if 'photo' in data['attachments'][i]:
+                self.att.append(data['attachments'][i]['photo']['sizes'][-1].get('url'))
+                self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
+            if 'doc' in data['attachments'][i]:
+                self.att.append(data['attachments'][i]['doc']['preview']['photo']['sizes'][-1].get('src'))
+                self.image_list.append(f'x_image/{data["id"]}_{i}.jpg')
+
+
+def scrape_data(data):
+    if data.get('is_pinned'):
+        return None
+    if data.get('copy_history'):
+        data['from_id'] = data['copy_history'][0]['from_id']
+        data['group_name'] = \
+            session.method('groups.getById', {'group_id': -data['from_id']})[0]['name']
+        data['repost_group'] = f"<a href='https://vk.com/public{data['from_id']}'>{data['group_name']}</a>"
+        data['repost_text'] = f"<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n    {data['repost_group']}\n"
+        data['text'] = data['copy_history'][0]['text']
+        data['signer_id'] = data['copy_history'][0]['signer_id']
+        data.update(attachments=data['copy_history'][0]['attachments'])
+        data.update(copy_history='data transferred')
+        return data
+    else:
+        return data
 
 
 def scrape_photos(data):
     box = Attachments(data)
-    if data.get('attachments') or (data.get('copy_history') and data['copy_history'][0].get('attachments')):
+    if data.get('attachments'):
         for i in range(len(box.att)):
             photo = requests.get(box.att[i])
             with open(f'x_image/{data["id"]}_{i}.jpg', 'wb') as fd:
@@ -96,20 +103,3 @@ def send_text(data, text):
         with open("last_post.txt", "w") as file:
             file.write(str(data['id']))
             file.close()
-
-
-def scrape_data(data):
-    if data.get('is_pinned'):
-        return None
-    if data.get('copy_history'):
-        data['from_id'] = data['copy_history'][0]['from_id']
-        data['group_name'] = \
-            session.method('groups.getById', {'group_id': -data['from_id']})[0]['name']
-        data['repost_group'] = f"<a href='https://vk.com/public{data['from_id']}'>{data['group_name']}</a>"
-        data['repost_text'] = f"<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n     {data['repost_group']}\n"
-        data['text'] = data['copy_history'][0]['text']
-        data['signer_id'] = data['copy_history'][0]['signer_id']
-        data.update(attachments=data['copy_history'][0]['attachments'])
-        return data
-    else:
-        return data
