@@ -20,12 +20,13 @@ def connect(offset):
     return r.json()['response']['items']
 
 
-i = 26000 #438136
+i =42000 #372513 36472 364551 355434 332329
 while True:
     try:
         data = connect(i)
         signer_id = _def_signer_id_func(data[0])
         i += 1
+        print(data[0].get('id'), data[0].get('text'))
         time.sleep(1)
     except KeyboardInterrupt:
         print('Скрипт остановлен')

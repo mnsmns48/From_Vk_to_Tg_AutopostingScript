@@ -28,9 +28,9 @@ def scrape_data(data):
         data['group_name'] = \
             session.method('groups.getById', {'group_id': -data['from_id']})[0]['name']
         data['repost_group'] = f"<a href='https://vk.com/public{data['from_id']}'>{data['group_name']}</a>"
-        data['repost_text'] = f"<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n    {data['repost_group']}\n"
-        data['text'] = data['copy_history'][0]['text']
-        data['signer_id'] = data['copy_history'][0]['signer_id']
+        data['repost_text'] = f"<b> ↑ ↑ ↑ ↑ Р Е П О С Т ↓ ↓ ↓ ↓</b>\n  {data['repost_group']}\n"
+        data['text'] = data['copy_history'][0].get('text')
+        data['signer_id'] = data['copy_history'][0].get('signer_id')
         data.update(attachments=data['copy_history'][0]['attachments'])
         data.update(copy_history='data transferred')
         return data

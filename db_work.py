@@ -1,13 +1,18 @@
 import sqlite3, vk_api
 from config import load_config
 
+from colorama import init
+
+init()
+from colorama import Fore, Back, Style
+
 config = load_config(".env")
 
 
 def find_user_func(data):
     try:
-        chars = '☎️,►,+,(,),-,+,!,.,:,[,],а,б,в,г,д,е,ё,ж,з,и,й,к,л,м,н,о,п,р,с,т,у,ф,х,ц,ч,ш,щ,ы,ь,ъ,э,ю,я,А,Б,В,Г,' \
-                'Д,Е,Ё,Ж,З,И,Й,К,Л,М,Н,О,П,Р,С,Т,У,Ф,Х,Ц,,Ч,Ш,Щ,Ы,Э,Ю,Я,/, '
+        chars = "☎️,►,+,(,),-,+,!,.,:,[,],а,б,в,г,д,е,ё,ж,з,и,й,к,л,м,н,о,п,р,с,т,у,ф,х,ц,ч,ш,щ,ы,ь,ъ,э,ю,я,А,Б,В,Г," \
+                "Д,Е,Ё,Ж,З,И,Й,К,Л,М,Н,О,П,Р,С,Т,У,Ф,Х,Ц,,Ч,Ш,Щ,Ы,Э,Ю,Я,/,', "
         text = str(data.get('text').translate(str.maketrans('', '', chars)).split())
         index = text.find("978")
         if index > 1:
@@ -52,7 +57,9 @@ def _def_signer_id_func(data):
             if _fnd_user_id:
                 return signer_id
             else:
-                print(f"{data.get('id')} Write: {_fnd_user_ph} {_get_username(signer_id)} VK ID:{signer_id}")
+                print(
+                    Fore.GREEN + f"{data.get('id')} Write: {_fnd_user_ph} "
+                                 f"{_get_username(signer_id)} VK ID:{signer_id}" + Style.RESET_ALL)
                 write_base(signer_id, int(_fnd_user_ph))
                 return signer_id
         else:
@@ -63,7 +70,8 @@ def _def_signer_id_func(data):
             _fnd_user_id = read_base('USER_ID', 'PHONE_NUMBER', int(_fnd_user_ph))
             if _fnd_user_id:
                 signer_id = _fnd_user_id
-                print(data.get('id'), 'Аноним присвоен ID из DB', read_base('FULL_NAME', 'USER_ID', int(_fnd_user_id)))
+                print(Fore.RED, data.get('id'), 'Аноним присвоен ID из DB',
+                      read_base('FULL_NAME', 'USER_ID', int(_fnd_user_id))+ Style.RESET_ALL)
                 return signer_id
             else:
                 signer_id = 'Anonymously'
