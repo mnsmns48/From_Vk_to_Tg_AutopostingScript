@@ -8,7 +8,6 @@ from attachments import scrape_photos, send_text, send_media, scrape_data
 config = load_config(".env")
 
 
-
 class Posting:
     def __init__(self, data):
         self._char_exceed = None
@@ -112,7 +111,7 @@ if __name__ == '__main__':
                 os.mkdir('x_image')
             else:
                 pass
-            exp_list = [i for i in range(0, 20)]
+            exp_list = [i for i in range(0, 300)]
             for i in tqdm(exp_list):
                 time.sleep(1)
     except KeyboardInterrupt:
