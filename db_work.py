@@ -71,7 +71,7 @@ def _def_signer_id_func(data):
             if _fnd_user_id:
                 signer_id = _fnd_user_id
                 print(Fore.RED, data.get('id'), 'Аноним присвоен ID из DB',
-                      read_base('FULL_NAME', 'USER_ID', int(_fnd_user_id))+ Style.RESET_ALL)
+                      read_base('FULL_NAME', 'USER_ID', int(_fnd_user_id)) + Style.RESET_ALL)
                 return signer_id
             else:
                 signer_id = 'Anonymously'
