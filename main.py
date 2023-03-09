@@ -92,6 +92,10 @@ if __name__ == '__main__':
             data_list = list()
             n = 0
             big_data = connect(config.tg_bot.amount_post_list)
+            for i in range(len(big_data)):
+                if big_data[i].get('is_pinned'):
+                    big_data.remove(big_data[i])
+                    break
             while n != len(big_data):
                 data_list.append(scrape_data(big_data[n]))
                 n += 1
