@@ -2,7 +2,7 @@ import requests, time, os, shutil
 from tqdm import tqdm
 from config import load_config
 
-from db_work import _def_signer_id_func, _get_username, read_base
+from db_work import _def_signer_id_func, _get_username, read_people_base
 from attachments import scrape_photos, send_text, send_media, scrape_data
 
 config = load_config(".env")
@@ -27,8 +27,8 @@ class Posting:
         elif self._video_key == 1:
             self.message = self.txt
         else:
-            self.signer_fullname = read_base('FULL_NAME', 'USER_ID', int(self.signer_id)) \
-                if read_base('FULL_NAME', 'USER_ID', int(self.signer_id)) else _get_username(self.signer_id)
+            self.signer_fullname = read_people_base('FULL_NAME', 'USER_ID', int(self.signer_id)) \
+                if read_people_base('FULL_NAME', 'USER_ID', int(self.signer_id)) else _get_username(self.signer_id)
             self.signer_url = 'vk.com/id' + str(self.signer_id)
             self.message = f"{self.repost}\n{self.txt}" \
                            f"\n<a href='{self.signer_url}'>          {self.signer_fullname}</a>\n{self.paid}"
@@ -71,6 +71,11 @@ def new_post_list(data):
     if list(reversed(posts)):
         print('Посты, готовящиеся к публикации: ', *list(reversed(posts)))
     return list(reversed(posts))
+
+# def new_post_list(data):
+#     posts = list()
+#     for i in range(len(data)):
+
 
 
 def connect(count):
