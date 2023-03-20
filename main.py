@@ -1,8 +1,10 @@
+import json
+
 import requests, time, os, shutil
 from tqdm import tqdm
 from config import load_config
 
-from db_work import _def_signer_id_func, _get_username, read_people_base
+from db_work import _def_signer_id_func, _get_username, read_people_base, check_post, write_post_data
 from attachments import scrape_photos, send_text, send_media, scrape_data
 
 config = load_config(".env")
@@ -14,6 +16,7 @@ class Posting:
         self._video_key = None
         self._images = None
         self.data = data
+        self.time = self.data['date']
         self.id = self.data['id']
         self.paid = '<i>          Платная реклама</i>' if self.data.get('marked_as_ads') else ' '
         self.txt = self.data.get('text')
@@ -46,6 +49,7 @@ class Posting:
                 send_media(self.data, self._images, self.message, self._char_exceed)
                 send_text(self.data, self.message)
                 time.sleep(3)
+        write_post_data(self.id, self.txt, self.signer_id, self.time)
 
 
 def write_last_post_id(text):
@@ -58,24 +62,6 @@ def read_last_post_id():
     f = open("last_post.txt", "r")
     for line in f:
         return int(line)
-
-
-def new_post_list(data):
-    posts = list()
-    for i in range(len(data)):
-        posts.append(data[i]['id'])
-    last_post = read_last_post_id()
-    item = posts.index(last_post)
-    del posts[item:]
-    print(f'Последний опубликованный пост № {last_post}')
-    if list(reversed(posts)):
-        print('Посты, готовящиеся к публикации: ', *list(reversed(posts)))
-    return list(reversed(posts))
-
-# def new_post_list(data):
-#     posts = list()
-#     for i in range(len(data)):
-
 
 
 def connect(count):
@@ -94,26 +80,29 @@ def connect(count):
 if __name__ == '__main__':
     try:
         while True:
-            data_list = list()
+            unpublished = list()
+            n_new_posts = list()
+            data_volume = connect(config.tg_bot.amount_post_list)
+            for i in range(len(data_volume)):
+                find = check_post(data_volume[i]['id'])
+                if find is None:
+                    unpublished.append(data_volume[i])
+                    n_new_posts.append(data_volume[i]['id'])
             n = 0
-            big_data = connect(config.tg_bot.amount_post_list)
-            for i in range(len(big_data)):
-                if big_data[i].get('is_pinned'):
-                    big_data.remove(big_data[i])
-                    break
-            while n != len(big_data):
-                data_list.append(scrape_data(big_data[n]))
+            # post list turn around
+            unpublished.reverse()
+            n_new_posts.reverse()
+            # clearing a large list
+            data_volume.clear()
+            while n != len(unpublished):
+                data_volume.append(scrape_data(unpublished[n]))
                 n += 1
-            big_data.clear()
-            new_post_count = len(new_post_list(data_list))
-            print(f'Количество новых постов: {new_post_count}')
-            unpublished = []
-            for n in range(new_post_count - 1, -1, -1):
-                unpublished.append(data_list[n])
-            data_list.clear()
-            for i in range(len(unpublished)):
-                post = Posting(unpublished[i])
+            print(f'New posts amount: {len(data_volume)}')
+            print('Posts to be published:', *n_new_posts)
+            for n in data_volume:
+                post = Posting(n)
                 post.send_to_tg()
+
             if len(os.listdir('x_image')) > 0:
                 path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'x_image')
                 shutil.rmtree(path)
@@ -124,4 +113,4 @@ if __name__ == '__main__':
             for i in tqdm(exp_list):
                 time.sleep(1)
     except KeyboardInterrupt:
-        print('Скрипт остановлен')
+        print('Script stopped')

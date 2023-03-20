@@ -1,12 +1,12 @@
 import sqlite3, vk_api
+from datetime import datetime
+
 from config import load_config
-
 from colorama import init
-
-init()
-from colorama import Fore, Back, Style
+from colorama import Fore, Style
 
 config = load_config(".env")
+init()
 
 
 def find_user_func(data):
@@ -71,7 +71,7 @@ def _def_signer_id_func(data):
             _fnd_user_id = read_people_base('USER_ID', 'PHONE_NUMBER', int(_fnd_user_ph))
             if _fnd_user_id:
                 signer_id = _fnd_user_id
-                print(Fore.RED, data.get('id'), 'Аноним присвоен ID из DB',
+                print(Fore.RED, data.get('id'), 'assigned to anonymous ID from DB',
                       read_people_base('FULL_NAME', 'USER_ID', int(_fnd_user_id)) + Style.RESET_ALL)
                 return signer_id
             else:
@@ -83,9 +83,25 @@ def _def_signer_id_func(data):
 
 
 def check_post(post):
+    try:
+        sqlite_connection = sqlite3.connect('base_id', check_same_thread=False)
+        cursor = sqlite_connection.cursor()
+        sqlite_select_query = f"SELECT POST FROM POSTS WHERE POST={post}"
+        cursor.execute(sqlite_select_query)
+        answer = cursor.fetchone()
+        return answer[0]
+    except TypeError:
+        return None
+
+
+def write_post_data(post_id, text, user_id, time):
     sqlite_connection = sqlite3.connect('base_id', check_same_thread=False)
     cursor = sqlite_connection.cursor()
-    sqlite_select_query = f'SELECT PUBLISHED FROM POSTS WHERE POST = {post}'
+    cursor.execute('INSERT INTO POSTS (POST, TEXT, USER_ID, TIME) VALUES (?, ?, ?, ?)',
+                   (post_id, text, user_id,
+                    datetime.fromtimestamp(time).strftime('%d-%m-%Y %H:%M:%S')))
+    sqlite_connection.commit()
+    print('writen post:', post_id)
 
 
 def _get_username(user_id):

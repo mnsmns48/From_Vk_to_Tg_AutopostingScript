@@ -21,8 +21,6 @@ class Attachments:
 
 
 def scrape_data(data):
-    # if data.get('is_pinned'):
-    #     return None
     if data.get('copy_history'):
         data['from_id'] = data['copy_history'][0]['from_id']
         data['group_name'] = \
