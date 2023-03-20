@@ -9,8 +9,8 @@ session = vk_api.VkApi(token=config.tg_bot.vk_api_token)
 
 class Attachments:
     def __init__(self, data):
-        self.att = []
-        self.image_list = []
+        self.att = list()
+        self.image_list = list()
         for i in range(len(data['attachments'])):
             if 'photo' in data['attachments'][i]:
                 self.att.append(data['attachments'][i]['photo']['sizes'][-1].get('url'))
@@ -67,11 +67,7 @@ def send_media(data, images, caption, char_exceed, photo='photo'):
     result = requests.post(request_url, params=params, files=files)
     if result.status_code == 200:
         time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
-        admin_message = f"{data['id']}, {result.ok}, Фотографии:, {len(list_attach)}, send_with_media, {time_now}"
-        print(admin_message)
-        with open("last_post.txt", "w") as file:
-            file.write(str(data['id']))
-            file.close()
+        print(f"{data['id']}, {result.ok}, Photo`s:, {len(list_attach)}, send_with_media, {time_now}")
 
 
 def send_text(data, text):
@@ -96,8 +92,4 @@ def send_text(data, text):
     result = requests.post(request_url, params=params)
     if result.status_code == 200:
         time_now = datetime.fromtimestamp(time.mktime(datetime.now().timetuple())).strftime('%H:%M:%S')
-        admin_message = f"{data['id']}, {result.ok}, Фотографии: 0, send_only_text, {time_now}"
-        print(admin_message)
-        with open("last_post.txt", "w") as file:
-            file.write(str(data['id']))
-            file.close()
+        print(f"{data['id']}, {result.ok}, Photo`s: 0, send_only_text, {time_now}")

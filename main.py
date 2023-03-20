@@ -1,5 +1,3 @@
-import json
-
 import requests, time, os, shutil
 from tqdm import tqdm
 from config import load_config
@@ -52,18 +50,6 @@ class Posting:
         write_post_data(self.id, self.txt, self.signer_id, self.time)
 
 
-def write_last_post_id(text):
-    with open("last_post.txt", "w") as file:
-        file.write(text)
-        file.close()
-
-
-def read_last_post_id():
-    f = open("last_post.txt", "r")
-    for line in f:
-        return int(line)
-
-
 def connect(count):
     r = requests.get('https://api.vk.com/method/wall.get',
                      params={
@@ -90,15 +76,14 @@ if __name__ == '__main__':
                     n_new_posts.append(data_volume[i]['id'])
             n = 0
             # post list turn around
-            unpublished.reverse()
-            n_new_posts.reverse()
+            unpublished.reverse() and n_new_posts.reverse()
             # clearing a large list
             data_volume.clear()
             while n != len(unpublished):
                 data_volume.append(scrape_data(unpublished[n]))
                 n += 1
-            print(f'New posts amount: {len(data_volume)}')
-            print('Posts to be published:', *n_new_posts)
+            print(f'New posts amount: {len(data_volume)}\n'
+                  f'Posts to be published: {n_new_posts}' if len(data_volume) > 0 else 'No new posts')
             for n in data_volume:
                 post = Posting(n)
                 post.send_to_tg()

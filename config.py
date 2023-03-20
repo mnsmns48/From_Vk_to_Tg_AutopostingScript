@@ -4,7 +4,6 @@ from environs import Env
 
 @dataclass
 class TgBot:
-    admin: int
     tg_chat: int
     bot_token: str
     vk_api_token: str
@@ -26,7 +25,6 @@ def load_config(path: str = None):
 
     return Config(
         tg_bot=TgBot(
-            admin=env.int("ADMIN"),
             tg_chat=env.int("CHAT_ID"),
             bot_token=env.str("BOT_TOKEN"),
             vk_api_token=env.str("VK_API_TOKEN"),
