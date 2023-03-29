@@ -63,7 +63,7 @@ def connect(count):
     return r.json()['response']['items']
 
 
-if __name__ == '__main__':
+def main():
     try:
         while True:
             unpublished = list()
@@ -99,3 +99,7 @@ if __name__ == '__main__':
                 time.sleep(1)
     except KeyboardInterrupt:
         print('Script stopped')
+
+
+if __name__ == '__main__':
+    main()
